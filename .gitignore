@@ -1,0 +1,49 @@
+# Environment variables and secrets
+.env
+.env*
+!.env.example
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Uploads, outputs & generated media files
+backend/uploads/
+backend/outputs/
+outputs/
+backend/music_uploads/
+backend/data/demucs_cache/
+*.mp4
+*.mov
+*.mkv
+*.webm
+
+# Large model files / weights (>100MB)
+backend/models/
+models/
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Databases & local state
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and tool configuration
+.qodo/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

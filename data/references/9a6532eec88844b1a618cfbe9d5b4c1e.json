@@ -1,0 +1,16 @@
+{
+  "reference_id": "9a6532eec88844b1a618cfbe9d5b4c1e",
+  "style_profile": {
+    "pacing": "medium",
+    "primary_transitions": [
+      "fade_in",
+      "hard_cut"
+    ],
+    "color_tone": "neutral",
+    "avg_cut_duration": 4.29,
+    "has_slow_motion": false,
+    "has_fast_motion": false,
+    "aspect_ratio": "9:16",
+    "estimated_mood": "neutral"
+  }
+}

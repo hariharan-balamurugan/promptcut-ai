@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptCut AI | Video Editor</title>
+    <link rel="stylesheet" href="style.css?v=4.0">
+</head>
+<body>
+    <!-- Toast container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <header class="navbar">
+        <div class="logo">✂ PromptCut <span>AI</span></div>
+        <div class="status"><span class="status-dot"></span> AI Video Studio</div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="single">✦ Single Edit</button>
+        <button class="tab-btn" data-tab="batch">⊞ Batch Processing</button>
+        <button class="tab-btn" data-tab="reference">◈ Reference Video</button>
+        <button class="tab-btn" data-tab="music">♫ Music Library</button>
+    </nav>
+
+    <main class="container">
+        <!-- ===================== SINGLE EDIT TAB ===================== -->
+        <div id="tab-single" class="tab-pane active">
+            <section class="hero">
+                <p class="eyebrow">YOUR AI VIDEO EDITOR</p>
+                <h1>Edit videos with <span>natural language.</span></h1>
+                <p class="subtitle">Upload a video, describe your edits, and let PromptCut AI do the work.</p>
+            </section>
+
+            <!-- Reference style toggle (shows when reference is set) -->
+            <div id="referenceToggleBar" class="reference-toggle-bar" style="display:none">
+                <label class="toggle-label">
+                    <input type="checkbox" id="useReferenceToggle">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    Apply Reference Style
+                </label>
+                <span id="referenceToggleInfo" class="muted-text"></span>
+            </div>
+
+            <section class="workspace">
+                <div class="panel upload-panel">
+                    <h2>01. Upload your video</h2>
+                    <label for="videoFile" class="upload-box" id="singleUploadBox">
+                        <div class="upload-icon">↑</div>
+                        <strong>Choose video(s)</strong>
+                        <span>MP4, MOV, MKV or WebM · Select 1 video or multiple clips to merge</span>
+                        <input type="file" id="videoFile" accept=".mp4,.mov,.mkv,.webm,video/*" multiple>
+                    </label>
+                    <div id="singleMultiClipsList" class="clips-order-list" style="display:none"></div>
+                    <p id="uploadStatus" class="message" aria-live="polite"></p>
+                </div>
+
+                <div class="panel preview-panel">
+                    <div class="panel-heading">
+                        <h2>02. Preview</h2>
+                        <span class="tag">VIDEO PREVIEW</span>
+                    </div>
+                    <div class="preview-box">
+                        <video id="videoPreview" controls hidden></video>
+                        <p id="previewPlaceholder">Your video preview will appear here.</p>
+                    </div>
+                    <div id="videoInfo" class="video-info"></div>
+                </div>
+
+                <div class="panel prompt-panel">
+                    <h2>03. Describe your edits</h2>
+                    <p class="hint">Tell the AI what you want to change.</p>
+
+                    <textarea
+                        id="editPrompt"
+                        placeholder="Example: Trim the first 5 seconds and convert my video to vertical 9:16..."
+                        rows="4"
+                    ></textarea>
+
+                    <label for="aiProvider">AI provider</label>
+                    <select id="aiProvider">
+                        <option value="auto">Automatic selection</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="ollama">Ollama (local AI)</option>
+                    </select>
+
+                    <div class="fast-mode-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; margin-bottom: 12px; padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                        <span style="font-size: 0.82rem; color: #a5b4fc; display: flex; align-items: center; gap: 6px;">
+                            ⚡ <strong>Turbo Fast Mode</strong> &mdash; 15&ndash;25s optimized rendering
+                        </span>
+                        <span class="badge" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;">ACTIVE</span>
+                    </div>
+
+                    <button id="editButton" disabled>✦ Generate editing plan</button>
+                    <p id="editStatus" class="message" aria-live="polite">
+                        Upload a video to get started.
+                    </p>
+                </div>
+
+                <!-- ===================== 04. SEPARATE BOTTOM BOX: LIVE AI EDITING TRACKER ===================== -->
+                <div class="panel tracker-panel" id="liveTrackerPanel">
+                    <div class="panel-heading">
+                        <div class="tracker-title-group">
+                            <span class="status-dot-pulse"></span>
+                            <h2>04. Live AI Editing Tracker</h2>
+                        </div>
+                        <div class="tracker-header-badges">
+                            <span id="trackerLiveBadge" class="tracker-live-badge ready">READY</span>
+                            <span id="aiStepTimer" class="tracker-timer">00:00</span>
+                        </div>
+                    </div>
+
+                    <p class="hint">Real-time status of the AI editing pipeline stages and operations.</p>
+
+                    <!-- Top progress bar -->
+                    <div class="tracker-progress-container">
+                        <div id="aiStepProgressFill" class="tracker-progress-fill" style="width: 0%"></div>
+                    </div>
+
+                    <!-- Current active status banner -->
+                    <div id="trackerActiveBanner" class="tracker-active-banner">
+                        <div class="banner-spinner" id="bannerSpinner"></div>
+                        <div class="banner-text-group">
+                            <span class="banner-label">CURRENT STATUS:</span>
+                            <span id="trackerCurrentAction" class="banner-action">Ready. Upload a video and click "Generate editing plan".</span>
+                        </div>
+                    </div>
+
+                    <!-- Steps Checklist Grid -->
+                    <div class="tracker-steps-grid">
+                        <div class="tracker-step-card pending" id="step-1">
+                            <div class="step-card-header">
+                                <span class="step-card-num">01</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>🧠 Prompt Parsing</h4>
+                            <p>Interprets natural language instructions into structured editing actions.</p>
+                        </div>
+
+                        <div class="tracker-step-card pending" id="step-2">
+                            <div class="step-card-header">
+                                <span class="step-card-num">02</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>🎞️ Scene & Emotion Detection</h4>
+                            <p>Extracts keyframes and analyzes visual emotions & mood intervals.</p>
+                        </div>
+
+                        <div class="tracker-step-card pending" id="step-3">
+                            <div class="step-card-header">
+                                <span class="step-card-num">03</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>🎵 Music Matching & Demucs</h4>
+                            <p>Searches music catalog & prepares emotion-aligned soundtrack stems.</p>
+                        </div>
+
+                        <div class="tracker-step-card pending" id="step-4">
+                            <div class="step-card-header">
+                                <span class="step-card-num">04</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>✂️ Visual Effects & Transitions</h4>
+                            <p>Renders cuts, speed alterations, slide transitions & color grading.</p>
+                        </div>
+
+                        <div class="tracker-step-card pending" id="step-5">
+                            <div class="step-card-header">
+                                <span class="step-card-num">05</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>🎤 Karaoke Captioning</h4>
+                            <p>Transcribes soundtrack lyrics with synchronized word-by-word timestamps.</p>
+                        </div>
+
+                        <div class="tracker-step-card pending" id="step-6">
+                            <div class="step-card-header">
+                                <span class="step-card-num">06</span>
+                                <span class="step-card-status">Waiting</span>
+                            </div>
+                            <h4>🎬 Final MP4 Video Export</h4>
+                            <p>FFmpeg combines visual & audio tracks and exports final video.</p>
+                        </div>
+                    </div>
+
+                    <!-- Live Execution Logs Terminal -->
+                    <div class="tracker-terminal">
+                        <div class="terminal-header">
+                            <span>LIVE PIPELINE LOGS</span>
+                            <span id="terminalStatusText">IDLE</span>
+                        </div>
+                        <div id="trackerTerminalBody" class="terminal-body">
+                            <div class="log-line info">[System] PromptCut AI studio ready. Upload a video and enter your editing prompt.</div>
+                        </div>
+                    </div>
+
+                    <!-- Completed Operations Summary & Download (Appears when completed) -->
+                    <div id="trackerCompletedBox" class="tracker-completed-box" style="display:none">
+                        <div class="completed-banner">
+                            <div class="completed-icon">✓</div>
+                            <div class="completed-banner-text">
+                                <h3>Editing Complete & Ready!</h3>
+                                <p id="trackerCompletedSummary">All 6 stages of the AI editing pipeline finished successfully.</p>
+                            </div>
+                            <a id="downloadBtn" class="btn-download" href="#" download>⬇ Download Edited Video</a>
+                        </div>
+                        <div class="completed-chips-container">
+                            <span class="chips-title">Applied Actions & AI Decisions:</span>
+                            <div id="aiOperationsList" class="completed-chips"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result card (shown after successful edit) -->
+                <div id="resultCard" class="result-card" style="display:none">
+                    <div class="result-card-header">
+                        <span class="result-icon">✓</span>
+                        <h3>Edit Complete</h3>
+                    </div>
+                    <div id="resultDetails" class="result-details"></div>
+                </div>
+            </section>
+
+            <footer>PromptCut AI · Your ideas, your edits.</footer>
+        </div>
+
+        <!-- ===================== BATCH PROCESSING TAB ===================== -->
+        <div id="tab-batch" class="tab-pane">
+            <section class="hero">
+                <p class="eyebrow">BATCH PROCESSING</p>
+                <h1>Edit <span>multiple videos</span> at once.</h1>
+                <p class="subtitle">Upload a queue of videos, provide one prompt, and process them all.</p>
+            </section>
+
+            <!-- Upload section -->
+            <div class="panel" style="margin-bottom:20px">
+                <h2>01. Select Videos</h2>
+                <div class="batch-drop-zone" id="batchDropZone">
+                    <div class="upload-icon">↑</div>
+                    <strong>Drag &amp; drop videos here</strong>
+                    <span>or click to browse — MP4, MOV, MKV, WebM</span>
+                    <input type="file" id="batchFileInput" accept=".mp4,.mov,.mkv,.webm,video/*" multiple style="display:none">
+                </div>
+
+                <div id="batchFileList" class="batch-file-list"></div>
+
+                <div class="batch-actions">
+                    <button id="uploadAllBtn" disabled>⬆ Upload All</button>
+                </div>
+            </div>
+
+            <!-- Batch prompt section -->
+            <div class="panel" style="margin-bottom:20px">
+                <h2>02. Batch Edit Prompt &amp; Mode</h2>
+                <p class="hint">Configure your edits and choose whether to merge clips or edit individually.</p>
+                <textarea id="batchPrompt" placeholder="Example: Add cinematic color grading, smooth transitions, and background music..." rows="3"></textarea>
+
+                <div class="processing-mode-container" style="margin-top:16px; margin-bottom:18px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:var(--text); font-size:13px;">Processing Mode</label>
+                    <div class="mode-options-grid">
+                        <label class="mode-option-card active" id="modeCardMerge">
+                            <input type="radio" name="batchModeRadio" value="merge" checked style="display:none">
+                            <div class="mode-card-header">
+                                <span class="mode-icon">🎬</span>
+                                <span class="mode-badge">RECOMMENDED</span>
+                            </div>
+                            <strong>Merge into Single Video</strong>
+                            <p>Stitches all uploaded videos together into 1 video with smooth transitions and matched soundtrack.</p>
+                        </label>
+                        <label class="mode-option-card" id="modeCardIndividual">
+                            <input type="radio" name="batchModeRadio" value="individual" style="display:none">
+                            <div class="mode-card-header">
+                                <span class="mode-icon">⊞</span>
+                            </div>
+                            <strong>Process Individually</strong>
+                            <p>Edits each video separately into its own independent output file (bulk edit mode).</p>
+                        </label>
+                    </div>
+                </div>
+
+                <label for="batchProvider">AI provider</label>
+                <select id="batchProvider">
+                    <option value="auto">Automatic selection</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="ollama">Ollama (local AI)</option>
+                </select>
+                <button id="startBatchBtn" disabled>🎬 Merge &amp; Edit into Single Video</button>
+                <p id="batchStartStatus" class="message"></p>
+            </div>
+
+            <!-- Dashboard -->
+            <div id="batchDashboard" class="panel" style="display:none">
+                <div class="panel-heading" style="margin-bottom:16px">
+                    <h2>03. Batch Dashboard</h2>
+                    <div>
+                        <span id="batchIdLabel" class="tag"></span>
+                        <button id="downloadZipBtn" class="btn-small" style="margin-left:12px; display:none">⬇ Download All ZIP</button>
+                    </div>
+                </div>
+
+                <!-- Merged Single Video Output Showcase (shows when merge mode completes) -->
+                <div id="batchMergedResultBox" class="tracker-completed-box" style="display:none; margin-bottom:20px;">
+                    <div class="completed-banner">
+                        <div class="completed-icon">✓</div>
+                        <div class="completed-banner-text">
+                            <h3>Merged Video Ready!</h3>
+                            <p id="batchMergedSummaryText">All uploaded clips were successfully merged and edited as a single video.</p>
+                        </div>
+                        <a id="batchMergedDownloadBtn" class="btn-download" href="#" download>⬇ Download Merged Video</a>
+                    </div>
+                    <div style="margin-top:16px;">
+                        <video id="batchMergedVideoPreview" controls style="width:100%; max-height:420px; border-radius:8px; background:#000; display:none;"></video>
+                    </div>
+                </div>
+
+                <!-- Overall progress bar -->
+                <div class="batch-progress">
+                    <div class="batch-progress-fill" id="batchProgressFill"></div>
+                </div>
+                <p id="batchProgressLabel" class="muted-text" style="margin:6px 0 16px"></p>
+
+                <!-- Jobs table -->
+                <table class="batch-table" id="batchTable">
+                    <thead>
+                        <tr>
+                            <th>Filename / Task</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batchTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ===================== REFERENCE VIDEO TAB ===================== -->
+        <div id="tab-reference" class="tab-pane">
+            <section class="hero">
+                <p class="eyebrow">REFERENCE VIDEO</p>
+                <h1>Match a video's <span>style.</span></h1>
+                <p class="subtitle">Upload a reference video and PromptCut AI will analyze its editing style.</p>
+            </section>
+
+            <div class="panel" style="margin-bottom:20px">
+                <h2>Upload Reference Video</h2>
+                <label for="refVideoFile" class="upload-box">
+                    <div class="upload-icon">◈</div>
+                    <strong>Choose reference video</strong>
+                    <span>MP4, MOV, MKV or WebM · Maximum 200 MB</span>
+                    <input type="file" id="refVideoFile" accept=".mp4,.mov,.mkv,.webm,video/*">
+                </label>
+                <p id="refUploadStatus" class="message"></p>
+            </div>
+
+            <div id="styleProfileCard" class="panel" style="display:none">
+                <div class="panel-heading" style="margin-bottom:16px">
+                    <h2>Style Profile</h2>
+                    <span class="tag">ANALYZED</span>
+                </div>
+                <div id="styleProfileGrid" class="style-profile-grid"></div>
+
+                <div style="margin-top:20px">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="applyReferenceToggle">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        Apply this style to Single Edit
+                    </label>
+                    <p id="applyReferenceStatus" class="message"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== MUSIC LIBRARY TAB ===================== -->
+        <div id="tab-music" class="tab-pane">
+            <section class="hero">
+                <p class="eyebrow">MUSIC LIBRARY</p>
+                <h1>Manage your <span>music catalog.</span></h1>
+                <p class="subtitle">Search, browse, and manage the background music collection.</p>
+            </section>
+
+            <!-- Search section -->
+            <div class="panel" style="margin-bottom:20px">
+                <h2>Search Music</h2>
+                <div class="music-search-row">
+                    <input type="text" id="musicSearchQ" class="music-search-input" placeholder="Search title, artist...">
+                    <select id="musicCategory">
+                        <option value="">All Categories</option>
+                        <option value="instrumental">Instrumental</option>
+                        <option value="cinematic">Cinematic</option>
+                        <option value="tamil">Tamil</option>
+                    </select>
+                    <select id="musicMood">
+                        <option value="">All Moods</option>
+                        <option value="happy">Happy</option>
+                        <option value="sad">Sad</option>
+                        <option value="energetic">Energetic</option>
+                        <option value="calm">Calm</option>
+                        <option value="dramatic">Dramatic</option>
+                    </select>
+                    <select id="musicLanguage">
+                        <option value="">All Languages</option>
+                        <option value="english">English</option>
+                        <option value="tamil">Tamil</option>
+                        <option value="hindi">Hindi</option>
+                        <option value="instrumental">Instrumental</option>
+                    </select>
+                    <button id="musicSearchBtn" class="btn-compact">Search</button>
+                    <button id="fetchOnlineTamilBtn" class="btn-compact" style="background:#4ade80;color:#0b0d12;font-weight:700">📥 Fetch Online Tamil</button>
+                </div>
+                <p id="musicSearchStatus" class="message"></p>
+            </div>
+
+            <!-- Results table -->
+            <div class="panel" style="margin-bottom:20px">
+                <div class="panel-heading" style="margin-bottom:16px">
+                    <h2>Results</h2>
+                    <span id="musicResultCount" class="tag"></span>
+                </div>
+                <div class="music-table-wrapper">
+                    <table class="music-table" id="musicTable">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Artist</th>
+                                <th>Category</th>
+                                <th>Mood</th>
+                                <th>Language</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="musicTableBody">
+                            <tr><td colspan="6" class="table-empty">Search to browse the music library.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Upload section -->
+            <div class="panel">
+                <h2>Upload Music</h2>
+                <label for="musicFile" class="upload-box">
+                    <div class="upload-icon">♫</div>
+                    <strong>Choose audio file</strong>
+                    <span>MP3, WAV, OGG, M4A</span>
+                    <input type="file" id="musicFile" accept=".mp3,.wav,.ogg,.m4a,audio/*">
+                </label>
+                <div id="musicUploadMeta" class="music-meta-fields" style="display:none">
+                    <input type="text" id="musicTitle" placeholder="Title" class="music-meta-input">
+                    <input type="text" id="musicArtist" placeholder="Artist" class="music-meta-input">
+                    <select id="musicUploadCategory">
+                        <option value="instrumental">Instrumental</option>
+                        <option value="cinematic">Cinematic</option>
+                        <option value="tamil">Tamil</option>
+                    </select>
+                    <select id="musicUploadMood">
+                        <option value="">Mood (optional)</option>
+                        <option value="happy">Happy</option>
+                        <option value="sad">Sad</option>
+                        <option value="energetic">Energetic</option>
+                        <option value="calm">Calm</option>
+                        <option value="dramatic">Dramatic</option>
+                    </select>
+                    <button id="musicUploadBtn">⬆ Upload Track</button>
+                </div>
+                <p id="musicUploadStatus" class="message"></p>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js?v=4.0"></script>
+</body>
+</html>
