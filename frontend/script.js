@@ -495,6 +495,8 @@ editButton.addEventListener("click", async () => {
   editButton.disabled = true;
   editStatus.textContent = "Generating your editing plan...";
   resultCard.style.display = "none";
+  const planSummaryBox = document.getElementById("planSummaryBox");
+  if (planSummaryBox) planSummaryBox.style.display = "none";
   startStepTracker(prompt);
 
   try {
@@ -539,6 +541,7 @@ editButton.addEventListener("click", async () => {
 
     // Show result card
     renderResultCard(data);
+    renderPlanSummary(data);
     editStatus.textContent = "Edit complete! All AI operations executed.";
     showToast("Edit completed successfully!", "success");
 
@@ -593,6 +596,69 @@ function renderResultCard(data) {
     item.innerHTML = `<div class="result-detail-label">${label}</div><div class="result-detail-value">${escapeHtml(String(value))}</div>`;
     resultDetails.appendChild(item);
   });
+}
+
+function renderPlanSummary(data) {
+  const planSummaryBox = document.getElementById("planSummaryBox");
+  const planSummaryCount = document.getElementById("planSummaryCount");
+  const planSummaryOverview = document.getElementById("planSummaryOverview");
+  const planSummaryOps = document.getElementById("planSummaryOps");
+  if (!planSummaryBox || !planSummaryCount || !planSummaryOverview || !planSummaryOps) return;
+
+  const plan = data.plan || {};
+  const ops = Array.isArray(plan.operations) ? plan.operations : [];
+
+  planSummaryCount.textContent = `${ops.length} operation${ops.length === 1 ? "" : "s"} executed`;
+
+  let overviewText = "";
+  if (data.merged_clips_count && data.merged_clips_count > 1) {
+    overviewText += `Merged <strong>${data.merged_clips_count} clips</strong> into a single cohesive video. `;
+  }
+  if (data.background_music && data.background_music.title) {
+    overviewText += `Matched soundtrack: <em>"${escapeHtml(data.background_music.title)}"</em>. `;
+  } else if (data.music_track) {
+    overviewText += `Soundtrack: <em>"${escapeHtml(data.music_track)}"</em>. `;
+  }
+  if (!overviewText) {
+    overviewText = "AI analyzed the video and executed the planned adjustments:";
+  }
+  planSummaryOverview.innerHTML = overviewText;
+
+  planSummaryOps.innerHTML = "";
+
+  if (ops.length === 0) {
+    const emptyItem = document.createElement("div");
+    emptyItem.className = "plan-summary-item";
+    emptyItem.innerHTML = `<span class="plan-op-badge">DIRECT</span> <span class="plan-op-desc">Audio mix & processing completed</span>`;
+    planSummaryOps.appendChild(emptyItem);
+  } else {
+    ops.forEach(op => {
+      const item = document.createElement("div");
+      item.className = "plan-summary-item";
+
+      let desc = "";
+      const type = (op.type || "edit").toLowerCase();
+
+      if (type === "trim") {
+        desc = `Cut section from ${op.start ?? 0}s to ${op.end ?? "end"}s`;
+      } else if (type === "resize") {
+        desc = `Adjust aspect ratio to ${op.aspect_ratio || "custom"}`;
+      } else if (type === "speed") {
+        desc = `Change playback speed to ${op.factor}x${op.start != null ? ` (${op.start}s to ${op.end}s)` : " (full video)"}`;
+      } else if (type === "transition") {
+        desc = `Apply ${op.transition?.replace(/_/g, " ") || "fade"} transition (${op.duration || 1}s)`;
+      } else if (type === "mute") {
+        desc = `Muted original audio track`;
+      } else {
+        desc = `Applied ${type} modification`;
+      }
+
+      item.innerHTML = `<span class="plan-op-badge">${escapeHtml(type)}</span> <span class="plan-op-desc">${escapeHtml(desc)}</span>`;
+      planSummaryOps.appendChild(item);
+    });
+  }
+
+  planSummaryBox.style.display = "block";
 }
 
 /* ================================================================
